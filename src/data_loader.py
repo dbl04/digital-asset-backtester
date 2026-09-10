@@ -158,7 +158,7 @@ class CryptoDataLoader:
 
         # Check if local CSV file exists
         if file_path.exists():
-            logger.info("Cargando datos locales desde archivo CSV: %s", file_path)
+            logger.info("Loading local data from CSV file: %s", file_path)
             df = pd.read_csv(file_path, index_col='datetime', parse_dates=True)
             df.index = pd.to_datetime(df.index, utc=True)
             df.index.name = 'datetime'
@@ -171,15 +171,15 @@ class CryptoDataLoader:
             if not df.empty and df.index[0] <= since_datetime + timedelta(days=1):
                 return df.loc[df.index >= since_datetime - timedelta(days=1)]
             
-            logger.info("El archivo CSV local no cubre el rango solicitado (days_back=%d). Re-descargando de la API...", days_back)
+            logger.info("Local CSV file does not cover requested range (days_back=%d). Re-downloading from API...", days_back)
 
         # If file does not exist or cache incomplete, fetch from API and persist to disk
-        logger.info("Descargando datos desde la API para '%s'...", symbol)
+        logger.info("Downloading data from API for '%s'...", symbol)
         df = self.fetch_historical_data(symbol=symbol, timeframe=timeframe, days_back=days_back)
         
         if not df.empty:
             df.to_csv(file_path)
-            logger.info("Datos guardados exitosamente en archivo local: %s", file_path)
+            logger.info("Data successfully saved to local file: %s", file_path)
 
         return df
 
@@ -195,15 +195,16 @@ if __name__ == "__main__":
     timeframe = "1d"
     days_back = 365
 
-    print("\n--- Ejecución 1: Primer intento de carga (Descarga API / Creación CSV) ---")
+    print("\n--- Execution 1: First load attempt (API Download / CSV Creation) ---")
     df_first_run = loader.load_data(symbol=symbol, timeframe=timeframe, days_back=days_back)
-    print("\nHead (Ejecución 1):")
+    print("\nHead (Execution 1):")
     print(df_first_run.head())
 
-    print("\n--- Ejecución 2: Segundo intento de carga (Uso de Caché Local CSV) ---")
+    print("\n--- Execution 2: Second load attempt (Using Local CSV Cache) ---")
     df_second_run = loader.load_data(symbol=symbol, timeframe=timeframe, days_back=days_back)
-    print("\nHead (Ejecución 2):")
+    print("\nHead (Execution 2):")
     print(df_second_run.head())
 
-    print("\n--- Verificación del esquema del DataFrame ---")
+    print("\n--- DataFrame Schema Verification ---")
     print(df_second_run.info())
+
