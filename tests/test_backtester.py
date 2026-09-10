@@ -48,6 +48,12 @@ def test_backtester_init_validation():
     with pytest.raises(ValueError, match="position_size must be between 0 and 1.0"):
         EventDrivenBacktester(position_size=1.5)
 
+    with pytest.raises(ValueError, match="slippage_rate must be between 0 and 1.0"):
+        EventDrivenBacktester(slippage_rate=-0.01)
+
+    with pytest.raises(ValueError, match="slippage_rate must be between 0 and 1.0"):
+        EventDrivenBacktester(slippage_rate=1.0)
+
 
 def test_backtester_input_validation(sample_signals_data):
     """Test input DataFrame validation in run_backtest."""
@@ -55,7 +61,8 @@ def test_backtester_input_validation(sample_signals_data):
 
     # Non-DataFrame input
     with pytest.raises(TypeError, match="Expected pandas DataFrame"):
-        backtester.run_backtest(cast(Any, "invalid_input"))
+        backtester.run_backtest("invalid_input")  # type: ignore[arg-type]
+
 
     # Empty DataFrame
     with pytest.raises(ValueError, match="Input DataFrame is empty"):
@@ -107,6 +114,28 @@ def test_backtester_trade_execution(sample_signals_data):
     assert pytest.approx(df_res["cash"].iloc[5]) == expected_final_cash
     assert df_res["position"].iloc[5] == 0.0
     assert pytest.approx(df_res["total_portfolio_value"].iloc[5]) == expected_final_cash
+
+
+def test_backtester_slippage_execution(sample_signals_data):
+    """Test that slippage modifies execution price during buys and sells."""
+    backtester = EventDrivenBacktester(
+        initial_capital=10000.0,
+        fee_rate=0.0,
+        position_size=1.0,
+        slippage_rate=0.01,  # 1% slippage
+    )
+    df_res = backtester.run_backtest(sample_signals_data)
+
+    # Buy on bar 2: Price = 100, with 1% slippage exec_price = 101
+    # Position acquired = 10000 / 101 = 99.00990099...
+    expected_pos = 10000.0 / 101.0
+    assert pytest.approx(df_res["position"].iloc[2]) == expected_pos
+
+    # Sell on bar 5: Price = 120, with 1% slippage exec_price = 118.8
+    # Gross proceeds = expected_pos * 118.8
+    expected_cash = expected_pos * 118.8
+    assert pytest.approx(df_res["cash"].iloc[5]) == expected_cash
+    assert df_res["position"].iloc[5] == 0.0
 
 
 def test_backtester_immutability(sample_signals_data):

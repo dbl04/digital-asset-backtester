@@ -124,6 +124,26 @@ class PerformanceMetrics:
         max_drawdown_pct: float = float(drawdown_series.min()) * 100.0
         return max_drawdown_pct
 
+    def calculate_buy_and_hold_return(self) -> float:
+        """
+        Calculate Buy-and-Hold benchmark return percentage based on asset close prices.
+
+        Returns:
+            float: Percentage change in underlying asset price over the backtest period.
+                   Returns 0.0 if 'close' column is missing or initial close is zero.
+        """
+        if 'close' not in self.df.columns:
+            logger.warning("'close' column missing in DataFrame. Returning 0.0 for Buy & Hold benchmark.")
+            return 0.0
+
+        first_close = float(self.df['close'].iloc[0])
+        last_close = float(self.df['close'].iloc[-1])
+
+        if first_close == 0.0:
+            return 0.0
+
+        return ((last_close - first_close) / first_close) * 100.0
+
     def get_summary(self, risk_free_rate: float = 0.0, periods_per_year: int = 365) -> Dict[str, float]:
         """
         Get all calculated performance metrics as a structured dictionary.
@@ -133,13 +153,17 @@ class PerformanceMetrics:
             periods_per_year (int): Annualization factor (default: 365).
 
         Returns:
-            Dict[str, float]: Dictionary containing cumulative_return_pct, annualized_sharpe, and max_drawdown_pct.
+            Dict[str, float]: Dictionary containing cumulative_return_pct, annualized_sharpe, max_drawdown_pct,
+                              and optionally buy_and_hold_return_pct.
         """
-        return {
+        summary = {
             "cumulative_return_pct": self.calculate_cumulative_return(),
             "annualized_sharpe": self.calculate_sharpe_ratio(risk_free_rate, periods_per_year),
             "max_drawdown_pct": self.calculate_max_drawdown(),
         }
+        if 'close' in self.df.columns:
+            summary["buy_and_hold_return_pct"] = self.calculate_buy_and_hold_return()
+        return summary
 
     def print_summary(self, risk_free_rate: float = 0.0, periods_per_year: int = 365) -> None:
         """
@@ -152,6 +176,8 @@ class PerformanceMetrics:
         print(f"Initial Capital:          ${self.initial_capital:,.2f}")
         print(f"Final Portfolio Value:    ${float(self.df['total_portfolio_value'].iloc[-1]):,.2f}")
         print(f"Cumulative Return:        {summary['cumulative_return_pct']:+.2f}%")
+        if "buy_and_hold_return_pct" in summary:
+            print(f"Buy & Hold Return:        {summary['buy_and_hold_return_pct']:+.2f}%")
         print(f"Annualized Sharpe Ratio:  {summary['annualized_sharpe']:.2f}")
         print(f"Maximum Drawdown:         {summary['max_drawdown_pct']:.2f}%")
         print("=" * 55)

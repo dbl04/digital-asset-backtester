@@ -14,10 +14,11 @@ def sample_portfolio_results() -> pd.DataFrame:
     dates = pd.date_range(start="2026-01-01", periods=10, freq="D", tz="UTC")
     # Portfolio values: 10000 -> 11000 -> 9000 -> 12000 ...
     equity = [10000.0, 10500.0, 11000.0, 10000.0, 9000.0, 9500.0, 11000.0, 12000.0, 11500.0, 12500.0]
+    prices = [100.0, 102.0, 105.0, 103.0, 98.0, 101.0, 110.0, 115.0, 112.0, 120.0]
     
     df = pd.DataFrame(
         {
-            "close": [100.0] * 10,
+            "close": prices,
             "total_portfolio_value": equity,
         },
         index=dates,
@@ -52,6 +53,22 @@ def test_cumulative_return_calculation(sample_portfolio_results):
     cum_ret = metrics.calculate_cumulative_return()
     # Final value: 12500.0, Initial: 10000.0 -> +25.0%
     assert cum_ret == pytest.approx(25.0)
+
+
+def test_buy_and_hold_return_calculation(sample_portfolio_results):
+    """Test calculation of Buy & Hold benchmark return percentage."""
+    metrics = PerformanceMetrics(sample_portfolio_results, initial_capital=10000.0)
+    bnh = metrics.calculate_buy_and_hold_return()
+    # Initial close = 100.0, Final close = 120.0 -> +20.0%
+    assert bnh == pytest.approx(20.0)
+
+
+def test_buy_and_hold_missing_close():
+    """Test Buy & Hold benchmark return behavior when 'close' column is missing."""
+    dates = pd.date_range(start="2026-01-01", periods=5, freq="D", tz="UTC")
+    df_no_close = pd.DataFrame({"total_portfolio_value": [10000.0] * 5}, index=dates)
+    metrics = PerformanceMetrics(df_no_close, initial_capital=10000.0)
+    assert metrics.calculate_buy_and_hold_return() == 0.0
 
 
 def test_max_drawdown_calculation(sample_portfolio_results):
@@ -90,5 +107,7 @@ def test_get_summary(sample_portfolio_results):
     assert "cumulative_return_pct" in summary
     assert "annualized_sharpe" in summary
     assert "max_drawdown_pct" in summary
+    assert "buy_and_hold_return_pct" in summary
 
     assert summary["cumulative_return_pct"] == pytest.approx(25.0)
+    assert summary["buy_and_hold_return_pct"] == pytest.approx(20.0)

@@ -32,14 +32,16 @@ class EventDrivenBacktester:
         initial_capital: float = 10000.0,
         fee_rate: float = 0.001,
         position_size: float = 0.5,
+        slippage_rate: float = 0.0,
     ) -> None:
         """
-        Initialize the EventDrivenBacktester with capital, fee, and sizing constraints.
+        Initialize the EventDrivenBacktester with capital, fee, sizing, and slippage constraints.
 
         Args:
             initial_capital (float): Starting portfolio cash (must be > 0).
             fee_rate (float): Trade execution fee rate (must be 0 <= fee_rate < 1).
             position_size (float): Proportion of cash to invest per long entry (0 < position_size <= 1.0).
+            slippage_rate (float): Slippage rate applied to trade execution (must be 0 <= slippage_rate < 1.0). Defaults to 0.0.
 
         Raises:
             ValueError: If input parameters fall outside valid numerical ranges.
@@ -50,10 +52,13 @@ class EventDrivenBacktester:
             raise ValueError(f"fee_rate must be between 0 and 1, got {fee_rate}")
         if not (0 < position_size <= 1.0):
             raise ValueError(f"position_size must be between 0 and 1.0, got {position_size}")
+        if not (0 <= slippage_rate < 1.0):
+            raise ValueError(f"slippage_rate must be between 0 and 1.0, got {slippage_rate}")
 
         self.initial_capital = initial_capital
         self.fee_rate = fee_rate
         self.position_size = position_size
+        self.slippage_rate = slippage_rate
 
     def run_backtest(self, df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -94,10 +99,11 @@ class EventDrivenBacktester:
         portfolio_value_history = []
 
         logger.info(
-            "Starting event-driven backtest | Initial Capital: $%.2f | Fee: %.2f%% | Position Size: %.0f%%",
+            "Starting event-driven backtest | Initial Capital: $%.2f | Fee: %.2f%% | Position Size: %.0f%% | Slippage: %.3f%%",
             self.initial_capital,
             self.fee_rate * 100,
             self.position_size * 100,
+            self.slippage_rate * 100,
         )
 
         # Row-by-row simulation loop (event-driven context)
@@ -108,16 +114,18 @@ class EventDrivenBacktester:
             # 1. Buy Execution Logic
             # Trigger: Signal turns to 1 and we currently hold no position
             if signal == 1 and current_position == 0.0:
+                exec_price = close_price * (1.0 + self.slippage_rate)
                 cash_to_spend = current_cash * self.position_size
                 fee = cash_to_spend * self.fee_rate
                 net_cash = cash_to_spend - fee
-                current_position = net_cash / close_price
+                current_position = net_cash / exec_price
                 current_cash -= cash_to_spend
 
             # 2. Sell Execution Logic
             # Trigger: Signal turns to 0 and we currently hold an active position
             elif signal == 0 and current_position > 0.0:
-                gross_proceeds = current_position * close_price
+                exec_price = close_price * (1.0 - self.slippage_rate)
+                gross_proceeds = current_position * exec_price
                 fee = gross_proceeds * self.fee_rate
                 net_proceeds = gross_proceeds - fee
                 current_cash += net_proceeds
