@@ -30,3 +30,13 @@ cd digital-asset-backtester
 python -m venv venv
 source venv/bin/activate  # On Windows use: venv\Scripts\activate
 pip install -r requirements.txt
+```
+
+### 2. Running Unit Tests & Coverage
+Execute the comprehensive `pytest` suite to verify signal generation, look-ahead bias prevention, trade accounting, and metrics accuracy:
+```bash
+pytest --cov=src --cov-report=term-missing
+```
+
+## Automated CI/CD Pipeline
+This repository includes a **GitHub Actions** Continuous Integration workflow (`.github/workflows/ci.yml`). On every `git push` or `pull_request` to `main`, GitHub automatically builds the environment across Python versions (3.10, 3.11, 3.12), installs dependencies, and runs the entire test suite to guarantee code reliability and prevent regression bugs.
