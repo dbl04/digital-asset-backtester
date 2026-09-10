@@ -219,7 +219,10 @@ __marimo__/
 
 # Project local data cache & generated reports
 data/
-reports/
+reports/*
+!reports/*.png
+
+
 
 # IDE Settings
 .vscode/
