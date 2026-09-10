@@ -217,6 +217,11 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# Project local data cache
+# Project local data cache & generated reports
 data/
+reports/
+
+# IDE Settings
+.vscode/
+.idea/
 
